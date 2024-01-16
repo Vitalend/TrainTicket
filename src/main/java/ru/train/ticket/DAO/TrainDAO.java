@@ -26,8 +26,8 @@ public class TrainDAO {
         List<Train> trains = new ArrayList<>();
 
         try {
-
-            ResultSet resultSet = connectionToDB.connect("SELECT * FROM Trains");
+            PreparedStatement preparedStatement = connectionToDB.connect("SELECT * FROM Trains");
+            ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 Train train = new Train();
 
@@ -37,6 +37,7 @@ public class TrainDAO {
 
                 trains.add(train);
             }
+            resultSet.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

@@ -3,6 +3,7 @@ package ru.train.ticket.util;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import ru.train.ticket.models.SeatTicket;
 
 import java.sql.*;
 import java.util.Objects;
@@ -17,32 +18,30 @@ public class ConnectionToDB {
         this.environment = environment;
     }
 
-    public ResultSet connect(String query) {
-        ResultSet resultSet;
+    public PreparedStatement connect(String string) {
+        PreparedStatement preparedStatement;
         try {
             Connection connection = DriverManager.getConnection
                     (Objects.requireNonNull(environment.getProperty("spring.datasource.url")),
                             environment.getProperty("spring.datasource.username"),
                             environment.getProperty("spring.datasource.password"));
-            Statement statement = connection.createStatement();
-            resultSet = statement.executeQuery
-                    (query);
-
+            preparedStatement = connection.prepareStatement(string);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return resultSet;
+        return preparedStatement;
     }
 
-    public void update(String query) {
+    public void update(String string) {
+
         try {
             Connection connection = DriverManager.getConnection
                     (Objects.requireNonNull(environment.getProperty("spring.datasource.url")),
                             environment.getProperty("spring.datasource.username"),
                             environment.getProperty("spring.datasource.password"));
-            Statement statement1 = connection.createStatement();
-          statement1.executeUpdate(query);
-          connection.close();
+            PreparedStatement preparedStatement = connection.prepareStatement(string);
+            preparedStatement.executeUpdate();
+            connection.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

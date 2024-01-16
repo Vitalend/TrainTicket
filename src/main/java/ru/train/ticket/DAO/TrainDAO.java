@@ -9,7 +9,6 @@ import ru.train.ticket.util.ConnectionToDB;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @Component
 public class TrainDAO {
@@ -38,9 +37,8 @@ public class TrainDAO {
 
                 trains.add(train);
             }
-
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
         return trains;
     }

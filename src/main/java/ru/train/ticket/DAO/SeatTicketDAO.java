@@ -7,42 +7,38 @@ import ru.train.ticket.util.ConnectionToDB;
 
 import java.sql.*;
 
+
 @Component
-public class SeatDAOTicket {
+public class SeatTicketDAO {
     ConnectionToDB connectionToDB;
 
     @Autowired
-    public SeatDAOTicket(ConnectionToDB connectionToDB) {
+    public SeatTicketDAO(ConnectionToDB connectionToDB) {
         this.connectionToDB = connectionToDB;
     }
 
-    String response;
+    private String response;
 
     public Boolean buyOneTicket(SeatTicket seatTicket) {
-
         try {
             ResultSet resultSet = connectionToDB.connect("SELECT * FROM Trains JOIN Wagons " +
-                    "ON Trains.train_id = Wagons.train_id " +
-                    "JOIN Seats ON Wagons.wagon_id = Seats.wagon_id;");
-            while (resultSet.next()) {
+                    "ON Trains.train_id = Wagons.train_id JOIN Seats "
+                    + "ON Wagons.wagon_id = Seats.wagon_id WHERE train_number = " + seatTicket.getTrainNumber()
+                    + " AND wagon_number = " + seatTicket.getWagonNumber() + " AND seat_number = "
+                    + seatTicket.getSeatNumber() + " AND seat_buying = true");
+            if (resultSet.next()) {
+                connectionToDB.update("UPDATE seats SET seat_buying = false WHERE seat_id = "
+                        + resultSet.getInt("seat_id"));
 
-                if (resultSet.getInt("train_number") == seatTicket.getTrainNumber()
-                        && resultSet.getInt("wagon_number") == seatTicket.getWagonNumber()
-                        && resultSet.getInt("seat_number") == seatTicket.getSeatNumber()
-                        && resultSet.getBoolean("seat_buying")) {
-
-                    connectionToDB.update("UPDATE seats SET seat_buying = false WHERE seat_id = "
-                            + resultSet.getInt("seat_id"));
-
-                    response = "Билет на поезд " + seatTicket.getTrainNumber() + " в вагон "
-                            + seatTicket.getWagonNumber() + " на место " + seatTicket.getSeatNumber() +
-                            " куплен, стоимость " + resultSet.getDouble("seat_cost") +
-                            " тип вагона " + resultSet.getString("wagon_type");
-                    return true;
-                }
+                response = "Билет на поезд " + seatTicket.getTrainNumber() + " в вагон "
+                        + seatTicket.getWagonNumber() + " на место " + seatTicket.getSeatNumber() +
+                        " куплен, стоимость " + resultSet.getDouble("seat_cost") +
+                        " тип вагона " + resultSet.getString("wagon_type");
+                return true;
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
         return false;
     }
@@ -83,20 +79,24 @@ public class SeatDAOTicket {
 
     public Boolean refundTicket(SeatTicket seatTicket) {
 
-        String query = "SELECT * FROM Trains JOIN Wagons ON Trains.train_id = Wagons.train_id JOIN Seats "
-                + "ON Wagons.wagon_id = Seats.wagon_id WHERE train_number = " + seatTicket.getTrainNumber()
-                + " AND wagon_number = " + seatTicket.getWagonNumber() + " AND seat_number = "
-                + seatTicket.getSeatNumber();
-        try {
-            ResultSet resultSet = connectionToDB.connect(query);
-            while (resultSet.next()) {
-                if (!resultSet.getBoolean("seat_buying")) {
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        Timestamp twoHours = new Timestamp(7200000);
 
-                    String query1 = "UPDATE seats SET seat_buying = true WHERE seat_id = "
-                            + resultSet.getInt("seat_id");
-                    connectionToDB.update(query1);
+        try {
+            ResultSet resultSet = connectionToDB.connect("SELECT * FROM Trains JOIN Wagons ON Trains.train_id = Wagons.train_id JOIN Seats "
+                    + "ON Wagons.wagon_id = Seats.wagon_id WHERE train_number = " + seatTicket.getTrainNumber()
+                    + " AND wagon_number = " + seatTicket.getWagonNumber() + " AND seat_number = "
+                    + seatTicket.getSeatNumber());
+            while (resultSet.next()) {
+                Timestamp timestampDB = (resultSet.getTimestamp("train_departure"));
+                if (!resultSet.getBoolean("seat_buying")
+                        && (timestampDB.getTime() - timestamp.getTime()) > twoHours.getTime()) {
+
+                    connectionToDB.update("UPDATE seats SET seat_buying = true WHERE seat_id = "
+                            + resultSet.getInt("seat_id"));
                     response = "Успешный возврат билета на поезд " + seatTicket.getTrainNumber() + " вагон "
-                            + seatTicket.getWagonNumber() + " место " + seatTicket.getSeatNumber();
+                            + seatTicket.getWagonNumber() + " место " + seatTicket.getSeatNumber()
+                            + " средства вернутся в размере " + resultSet.getInt("seat_cost");
                     return true;
                 }
             }
@@ -105,7 +105,6 @@ public class SeatDAOTicket {
         }
         return false;
     }
-
 
     public String getResponse() {
         return response;

@@ -7,10 +7,7 @@ public class Train {
     private String trainRoute;
     private Timestamp trainDeparture;
 
-    public Train() {
-    }
-
-    ;
+    public Train(){}
 
     public Train(int trainNumber, String trainRoute, Timestamp trainDeparture) {
         this.trainNumber = trainNumber;
@@ -41,4 +38,5 @@ public class Train {
     public void setTrainDeparture(Timestamp trainDeparture) {
         this.trainDeparture = trainDeparture;
     }
+
 }

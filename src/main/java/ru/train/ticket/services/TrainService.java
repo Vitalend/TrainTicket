@@ -1,7 +1,6 @@
-package ru.train.ticket.DAO;
+package ru.train.ticket.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import ru.train.ticket.models.Train;
 import ru.train.ticket.util.ConnectionToDB;
@@ -11,22 +10,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-public class TrainDAO {
-    Environment environment;
-
+public class TrainService {
     ConnectionToDB connectionToDB;
 
     @Autowired
-    public TrainDAO(Environment environment, ConnectionToDB connectionToDB) {
-        this.environment = environment;
+    public TrainService(ConnectionToDB connectionToDB) {
         this.connectionToDB = connectionToDB;
     }
 
-    public List<Train> allTrains() {
+    public List<Train> allTrains() throws SQLException {
         List<Train> trains = new ArrayList<>();
 
         try {
-            PreparedStatement preparedStatement = connectionToDB.connect("SELECT * FROM Trains");
+            PreparedStatement preparedStatement = connectionToDB.getConnection().prepareStatement
+                    ("SELECT * FROM Trains");
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 Train train = new Train();

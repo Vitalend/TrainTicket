@@ -28,6 +28,7 @@ public class GroupTicketService {
         int counter = groupTicket.getTicketQuantity();
 
         connectionToDB.getConnection().setAutoCommit(false);
+        connectionToDB.getConnection().setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
 
         PreparedStatement getJoinData = connectionToDB.getConnection().prepareStatement
                 ("SELECT * FROM Trains JOIN Wagons ON Trains.train_id = Wagons.train_id " +
@@ -50,10 +51,14 @@ public class GroupTicketService {
                 updateSeats.executeUpdate();
             }
             connectionToDB.getConnection().commit();
+            connectionToDB.getConnection().setAutoCommit(true);
+            connectionToDB.getConnection().setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             return "Билеты на поезд " + groupTicket.getTrainNumber() + " в вагон " + groupTicket.getWagonNumber() +
                     " куплены в количестве " + groupTicket.getTicketQuantity();
         }
         connectionToDB.getConnection().rollback();
+        connectionToDB.getConnection().setAutoCommit(true);
+        connectionToDB.getConnection().setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
         throw new GroupTicketBuyException();
     }
 }

@@ -44,7 +44,6 @@ public class GroupTicketService {
         }
         if (seatIdList.size() >= counter) {
 
-
             for (int i = 0; i < counter; i++) {
 
                 PreparedStatement updateSeats = connectionToDB.getConnection().prepareStatement

@@ -23,5 +23,6 @@ public class ConnectionTB {
                 (Objects.requireNonNull(environment.getProperty("spring.datasource.url")),
                         environment.getProperty("spring.datasource.username"),
                         environment.getProperty("spring.datasource.password"));
+
     }
 }

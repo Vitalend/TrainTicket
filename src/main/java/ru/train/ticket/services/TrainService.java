@@ -21,12 +21,12 @@ public class TrainService {
 
 
     public List<Train> allTrains() throws SQLException {
+
+        Connection con = connectionTB.connect();
+
         List<Train> trains = new ArrayList<>();
 
-        System.setProperty("user.timezone", "Europe/Moscow");
-
-        try {
-            PreparedStatement preparedStatement =  connectionTB.connect().prepareStatement
+            PreparedStatement preparedStatement =  con.prepareStatement
                     ("SELECT * FROM Trains");
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
@@ -39,9 +39,8 @@ public class TrainService {
                 trains.add(train);
             }
             resultSet.close();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+            con.close();
+
         return trains;
     }
 }

@@ -23,18 +23,20 @@ public class GroupTicketService {
 
     public String groupTicketBuy(GroupTicket groupTicket) throws SQLException {
 
+        Connection con = connectionTB.connect();
+
+        con.setAutoCommit(false);
+
+        con.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
         List<Integer> seatIdList = new ArrayList<>();
 
         int counter = groupTicket.getTicketQuantity();
 
-        connectionTB.connect().setAutoCommit(false);
-        connectionTB.connect().setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-
-      try (PreparedStatement getJoinData = connectionTB.connect().prepareStatement
-                  ("SELECT * FROM Trains JOIN Wagons ON Trains.train_id = Wagons.train_id " +
-                          "JOIN Seats ON Wagons.wagon_id = Seats.wagon_id WHERE train_number = ? " +
-                          "AND wagon_number = ? AND seat_buying = true")) {
-
+        PreparedStatement getJoinData = con.prepareStatement
+                ("SELECT * FROM Trains JOIN Wagons ON Trains.train_id = Wagons.train_id " +
+                        "JOIN Seats ON Wagons.wagon_id = Seats.wagon_id WHERE train_number = ? " +
+                        "AND wagon_number = ? AND seat_buying = true");
 
         getJoinData.setInt(1, groupTicket.getTrainNumber());
         getJoinData.setInt(2, groupTicket.getWagonNumber());
@@ -46,21 +48,25 @@ public class GroupTicketService {
         if (seatIdList.size() >= counter) {
 
             for (int i = 0; i < counter; i++) {
+                con.prepareStatement("UPDATE seats SET seat_buying = FALSE " +
+                        "WHERE seat_id = " + seatIdList.get(i)).execute();
 
-                PreparedStatement updateSeats = connectionTB.connect().prepareStatement
-                        ("UPDATE seats SET seat_buying = FALSE WHERE seat_id = " + seatIdList.get(i));
-                updateSeats.executeUpdate();
             }
-           // connectionTB.connect().commit();
-            connectionTB.connect().setAutoCommit(true);
-            connectionTB.connect().setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-            return "Билеты на поезд " + groupTicket.getTrainNumber() + " в вагон " + groupTicket.getWagonNumber() +
-                    " куплены в количестве " + groupTicket.getTicketQuantity();
+            con.commit();
+            con.setAutoCommit(true);
+            con.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            con.close();
+
+            return "Билеты на поезд " + groupTicket.getTrainNumber() + " в вагон "
+                    + groupTicket.getWagonNumber() + " куплены в количестве "
+                    + groupTicket.getTicketQuantity();
         }
-      }
-     //   connectionTB.connect().rollback();
-        connectionTB.connect().setAutoCommit(true);
-        connectionTB.connect().setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+        con.rollback();
+        con.setAutoCommit(true);
+        con.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+        resultSet.close();
+        getJoinData.close();
+        con.close();
         throw new GroupTicketBuyException();
     }
 }

@@ -9,11 +9,11 @@
    
 {
    
-   "trainNumber": номер поезда,
+    "trainNumber": номер поезда,
   
-   "wagonNumber": номер вагона,
+    "wagonNumber": номер вагона,
   
-   "seatNumber":  номер места
+    "seatNumber":  номер места
    
 }
 

@@ -1,5 +1,8 @@
 package ru.train.ticket.models;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class OneTicket {
 
     private int seatNumber;

@@ -5,7 +5,8 @@ public class GroupTicket {
     private int trainNumber;
     private int wagonNumber;
 
-    public GroupTicket(){}
+    public GroupTicket() {
+    }
 
     public GroupTicket(int ticketQuantity, int trainNumber, int wagonNumber) {
         this.ticketQuantity = ticketQuantity;

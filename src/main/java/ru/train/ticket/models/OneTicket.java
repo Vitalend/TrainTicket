@@ -9,7 +9,8 @@ public class OneTicket {
     private int wagonNumber;
     private int trainNumber;
 
-    public OneTicket(){}
+    public OneTicket() {
+    }
 
     public OneTicket(int seatNumber, int wagonNumber, int trainNumber) {
         this.seatNumber = seatNumber;

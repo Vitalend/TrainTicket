@@ -26,6 +26,7 @@ public class GroupTicketController {
     public String groupBuy(@RequestBody GroupTicket groupTicket) throws SQLException {
         return groupTicketService.groupTicketBuy(groupTicket);
     }
+
     @ExceptionHandler
     private ResponseEntity<TicketErrorResponse> handleException(GroupTicketBuyException e) {
         TicketErrorResponse response = new TicketErrorResponse(

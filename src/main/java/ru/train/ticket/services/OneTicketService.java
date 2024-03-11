@@ -1,81 +1,120 @@
 package ru.train.ticket.services;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
-import ru.train.ticket.models.OneTicket;
-import ru.train.ticket.util.ConnectionTB;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import ru.train.ticket.DTO.OneTicketDTO;
 import ru.train.ticket.util.exceptions.OneTicketBuyException;
 import ru.train.ticket.util.exceptions.TicketRefundException;
-
 
 import java.sql.*;
 import java.time.LocalDateTime;
 
 @Component
 public class OneTicketService {
-
-    ConnectionTB connectionTB;
+    private final JdbcClient jdbcClient;
 
     @Autowired
-    public OneTicketService(ConnectionTB connectionTB) {
-        this.connectionTB = connectionTB;
+    public OneTicketService(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+    private static final int TWO_HOURS_BEFORE_DEPARTURE = 5;
+
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public String buyOneTicket(@Valid OneTicketDTO oneTicketDTO) {
+
+        String update = "UPDATE seats SET seat_occupied = false WHERE seat_id= " +
+                "(SELECT seat_id FROM Trains " +
+                "JOIN departures ON Trains.train_id = departures.train_id " +
+                "JOIN Wagons ON departures.departure_id = wagons.departure_id " +
+                "JOIN Seats ON Wagons.wagon_id = Seats.wagon_id " +
+                "WHERE train_number = ? AND departure_time = ? AND wagon_number = ? " +
+                "AND seat_number = ? AND seat_occupied = true)";
+
+        String getId = "SELECT seat_id FROM Trains JOIN Departures ON Trains.train_id = Departures.train_id " +
+                " JOIN Wagons ON Departures.departure_id = Wagons.departure_id " +
+                " JOIN Seats ON Wagons.wagon_id = Seats.wagon_id " +
+                " WHERE train_number = ? AND departure_time = ? AND wagon_number = ? " +
+                " AND seat_number = ? ";
+
+        int countUpdate = jdbcClient.sql(update)
+                .param(1, oneTicketDTO.getTrainNumber())
+                .param(2, oneTicketDTO.getDepartureTime())
+                .param(3, oneTicketDTO.getWagonNumber())
+                .param(4, oneTicketDTO.getSeatNumber())
+                .update();
+        if (countUpdate != 1) {
+            throw new OneTicketBuyException();
+        }
+
+        Object seatId = jdbcClient.sql(getId)
+                .param(1, oneTicketDTO.getTrainNumber())
+                .param(2, oneTicketDTO.getDepartureTime())
+                .param(3, oneTicketDTO.getWagonNumber())
+                .param(4, oneTicketDTO.getSeatNumber())
+                .query()
+                .singleValue();
+
+        String insert = "INSERT INTO passengers (seat_id, passenger_name, passport_number)" +
+                "VALUES (" + seatId + ", ?, ?)";
+
+        int countCreate = jdbcClient.sql(insert)
+                .param(1, oneTicketDTO.getPassengerName())
+                .param(2, oneTicketDTO.getPassportNumber())
+                .update();
+        if (countCreate != 1) {
+            throw new OneTicketBuyException();
+        }
+        return "Билет на поезд " + oneTicketDTO.getTrainNumber() + " в вагон "
+                + oneTicketDTO.getWagonNumber() + " на место " + oneTicketDTO.getSeatNumber() +
+                " время отправления " + oneTicketDTO.getDepartureTime() + " куплен. ";
     }
 
-    private static final int TWO_HOURS_BEFORE_DEPARTURE = 2;
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public String refundTicket(OneTicketDTO oneTicketDTO) {
 
-    public String buyOneTicket(OneTicket oneTicket) throws SQLException {
+        String update = "UPDATE seats SET seat_occupied = true WHERE seat_id= " +
+                "(SELECT seat_id FROM Trains " +
+                "JOIN departures ON Trains.train_id = departures.train_id " +
+                "JOIN Wagons ON departures.departure_id = wagons.departure_id " +
+                "JOIN Seats ON Wagons.wagon_id = Seats.wagon_id " +
+                "WHERE train_number = ? AND departure_time = ? AND wagon_number = ? " +
+                "AND seat_number = ? AND seat_occupied = false AND departure_time > ?)";
 
-        Connection con = connectionTB.connect();
+        String delete = "DELETE FROM Passengers WHERE seat_id = (SELECT seat_id FROM Trains" +
+                " JOIN Departures ON Trains.train_id = Departures.train_id" +
+                " JOIN Wagons ON Departures.departure_id = Wagons.departure_id" +
+                " JOIN Seats ON Wagons.wagon_id = Seats.wagon_id" +
+                " AND train_number = ? AND departure_time = ? AND wagon_number = ? AND seat_number = ?)";
 
-        PreparedStatement updateForBuy = con.prepareStatement(
-                "UPDATE seats SET seat_buying = false WHERE seat_id= " +
-                        "(SELECT seat_id FROM Trains JOIN Wagons" +
-                        " ON Trains.train_id = Wagons.train_id JOIN Seats" +
-                        " ON Wagons.wagon_id = Seats.wagon_id WHERE trains.train_number = ?" +
-                        " AND wagon_number = ? AND seat_number = ? AND seat_buying = true);");
+        int countUpdate = jdbcClient.sql(update)
+                .param(1, oneTicketDTO.getTrainNumber())
+                .param(2, oneTicketDTO.getDepartureTime())
+                .param(3, oneTicketDTO.getWagonNumber())
+                .param(4, oneTicketDTO.getSeatNumber())
+                .param(5, Timestamp.valueOf(LocalDateTime.now().plusHours(TWO_HOURS_BEFORE_DEPARTURE)))
+                .update();
 
-        updateForBuy.setInt(1, oneTicket.getTrainNumber());
-        updateForBuy.setInt(2, oneTicket.getWagonNumber());
-        updateForBuy.setInt(3, oneTicket.getSeatNumber());
-
-        if (updateForBuy.executeUpdate() == 1) {
-            con.close();
-            return "Билет на поезд " + oneTicket.getTrainNumber() + " в вагон "
-                    + oneTicket.getWagonNumber() + " на место " + oneTicket.getSeatNumber() +
-                    " куплен. ";
+        if (countUpdate != 1) {
+            throw new TicketRefundException();
         }
-        updateForBuy.close();
-        con.close();
-        throw new OneTicketBuyException();
-    }
 
-    public String refundTicket(OneTicket oneTicket) throws SQLException {
+        int countDelete = jdbcClient.sql(delete)
+                .param(1, oneTicketDTO.getTrainNumber())
+                .param(2, oneTicketDTO.getDepartureTime())
+                .param(3, oneTicketDTO.getWagonNumber())
+                .param(4, oneTicketDTO.getSeatNumber())
+                .update();
 
-        Connection con = connectionTB.connect();
-
-        PreparedStatement updateForRefund = con.prepareStatement(
-                "UPDATE seats SET seat_buying = true WHERE seat_id= " +
-                        "(SELECT seat_id FROM Trains JOIN Wagons" +
-                        "    ON Trains.train_id = Wagons.train_id JOIN Seats" +
-                        "    ON Wagons.wagon_id = Seats.wagon_id WHERE trains.train_number = ?" +
-                        "    AND wagon_number = ? AND seat_number = ? AND seat_buying = false " +
-                        "AND train_departure > ?);");
-
-        updateForRefund.setInt(1, oneTicket.getTrainNumber());
-        updateForRefund.setInt(2, oneTicket.getWagonNumber());
-        updateForRefund.setInt(3, oneTicket.getSeatNumber());
-        updateForRefund.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now().
-                plusHours(TWO_HOURS_BEFORE_DEPARTURE)));
-
-        if (updateForRefund.executeUpdate() == 1) {
-            con.close();
-            return "Билет на поезд " + oneTicket.getTrainNumber() + " в вагон "
-                    + oneTicket.getWagonNumber() + " на место " + oneTicket.getSeatNumber() +
-                    " успешно возвращен ";
+        if (countDelete != 1) {
+            throw new TicketRefundException();
         }
-        updateForRefund.close();
-        con.close();
-        throw new TicketRefundException();
+        return "Билет на поезд " + oneTicketDTO.getTrainNumber() + " в вагон "
+                + oneTicketDTO.getWagonNumber() + " на место " + oneTicketDTO.getSeatNumber() +
+                " успешно возвращен ";
     }
 }
 

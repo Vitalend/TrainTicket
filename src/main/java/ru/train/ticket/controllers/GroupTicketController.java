@@ -1,15 +1,14 @@
 package ru.train.ticket.controllers;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.train.ticket.models.GroupTicket;
+import ru.train.ticket.DTO.GroupTicketDTO;
 import ru.train.ticket.services.GroupTicketService;
 import ru.train.ticket.util.exceptions.GroupTicketBuyException;
 import ru.train.ticket.util.exceptions.TicketErrorResponse;
-
-import java.sql.SQLException;
 
 @RestController
 @RequestMapping("/ticket")
@@ -22,9 +21,9 @@ public class GroupTicketController {
         this.groupTicketService = groupTicketService;
     }
 
-    @PatchMapping("/buy/group")
-    public String groupBuy(@RequestBody GroupTicket groupTicket) throws SQLException {
-        return groupTicketService.groupTicketBuy(groupTicket);
+    @PostMapping("/buy/group")
+    public String groupBuy(@Valid @RequestBody GroupTicketDTO groupTicketDTO) {
+        return groupTicketService.groupTicketBuy(groupTicketDTO);
     }
 
     @ExceptionHandler

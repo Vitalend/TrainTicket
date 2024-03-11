@@ -4,8 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.train.ticket.DTO.TrainDTO;
 import ru.train.ticket.services.TrainService;
-import ru.train.ticket.models.Train;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -22,7 +22,7 @@ public class TrainController {
     }
 
     @GetMapping("/all")
-    public List<Train> getAllTrains() throws SQLException {
+    public List<TrainDTO> getAllTrains() throws SQLException {
 
         return trainService.allTrains();
     }

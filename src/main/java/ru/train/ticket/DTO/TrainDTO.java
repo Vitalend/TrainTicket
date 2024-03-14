@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Timestamp;
 
-
+@Component
 public class TrainDTO {
     private int trainNumber;
     private String trainRoute;

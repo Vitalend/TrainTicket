@@ -1,51 +1,44 @@
 package ru.train.ticket.services;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import ru.train.ticket.DTO.TrainDTO;
-import ru.train.ticket.util.ConnectionTB;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class TrainService {
 
-    private final ConnectionTB connectionTB;
+    private final JdbcClient jdbcClient;
 
     @Autowired
-    public TrainService(ConnectionTB connectionTB) {
-        this.connectionTB = connectionTB;
+    public TrainService(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
     }
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-    public List<TrainDTO> allTrains() throws SQLException {
+    public List<TrainDTO> allTrains(){
 
-        Connection con = connectionTB.connect();
+        List<TrainDTO> trainDTOList = new ArrayList<>();
 
-        List<TrainDTO> trains = new ArrayList<>();
+        TrainDTO train = new TrainDTO();
 
-        PreparedStatement preparedStatement = con.prepareStatement
-                ("SELECT * FROM Trains JOIN departures ON Trains.train_id = departures.train_id");
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            TrainDTO train = new TrainDTO();
+        List<Map<String, Object>> trains =
+                jdbcClient.sql("SELECT * FROM Trains JOIN departures ON " +
+                        "Trains.train_id = departures.train_id")
+                        .query()
+                        .listOfRows();
+        for (int i = 0; i < trains.size(); i++) {
+            train.setTrainNumber((Integer)trains.get(i).get("train_number"));
+            train.setTrainRoute(trains.get(i).get("train_route").toString());
+            train.setDepartureTime((Timestamp) trains.get(i).get("departure_time"));
 
-            train.setTrainNumber(resultSet.getInt("train_number"));
-            train.setTrainRoute(resultSet.getString("train_route"));
-            train.setDepartureTime(resultSet.getTimestamp("departure_time"));
-
-            trains.add(train);
+            trainDTOList.add(train);
         }
-        resultSet.close();
-        con.close();
-
-        return trains;
+        return trainDTOList;
     }
 }
 
